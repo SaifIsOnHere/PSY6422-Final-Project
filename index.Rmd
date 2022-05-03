@@ -1,0 +1,488 @@
+---
+title: "index"
+author: '210155419'
+date: "03/05/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Distribution of Bachelor Degree Holders across the USA by State
+
+Student ID: 210155419
+
+## Introduction
+
+As a university student myself, one of the most common questions i get asked and tend to ask people upon meeting them is; what degree do you study? It has therefore interested me in looking at the numbers of degrees people hold within each field of study. In researching for datasets relating to this, i found a particularly interesting dataset detailing the numbers of Bachelors degrees held in each state of the United States of America.
+
+The aim of this data visualisation project will be to look at distribution of degree holders by state using colour.
+
+#Note the data file did not mention the year it was collected or merged.
+
+## Data Acquisiton 
+The data acquired for this study came from kaggle, an online directory for accessing various free datasets. The author references the US census bureau for the data. The link to the kaggle can be found here: https://www.kaggle.com/datasets/tjkyner/bachelor-degree-majors-by-age-sex-and-state
+
+# Research Questions 
+
+* Which states host the most bachelor degree holders?
+* Which states hold the most degrees based on fields of study?
+* Is there difference in number of degree holders for male and female?
+
+
+# Libraries
+
+Certain libraries are required to be loaded in order to use their features that are needed.
+These are the following:
+
+- library(tidyverse)
+- library(urbnmapr)
+- library(usmap)
+- library(readr)
+- library(plotly)
+- library(gridExtra)
+- library(ggpubr)
+
+```{r, include = FALSE}
+library(tidyverse)
+library(urbnmapr)
+library(usmap)
+library(readr)
+library(plotly)
+library(gridExtra)
+library(ggpubr)
+library(patchwork)
+```
+
+
+# Data
+### Data Loading
+
+First loading in the data acquired from kaggle, on the United States. This dataset displays the number of people holding a degree in each of the states. The types of degrees are also shown; Science and Engineering, Business, Education and Arts,Humanties and Others. 
+
+It also further categorises the data into male and female degree holders, further breaking it down into 4 age categories; 25 & older, 25-39, 40-64 and 65 & older.
+
+Read_csv is used to read an excel file and translate it into R.
+The head() function is used to preview a snippet of the data tables
+
+```{r}
+undergrad <- read_csv("Data/undergrad.csv")
+head(undergrad)
+```
+
+Secondly as part of the urbnmapr package/library, a dataset on each states longditude and latitude is available. This will be loaded in and used to build an accurate map of the USA.
+
+```{r}
+view(states)
+head(states)
+```
+
+### Cleaning the Data
+Now the data is cleaned, as there was no codebook available unfortunately, a degree type of 'science and engineering related fields' is included, it is not known what types of degrees these are. As there is already a science and engineering column, this column will be removed. 
+
+The next step is to change one of the column names in the undergrad dataset. This is because we will be joining the 'states' and 'undergrad' sets together later on. 
+
+
+```{r}
+undergrad <- select(undergrad, -c("Science and Engineering Related Fields"))
+colnames(undergrad)[colnames(undergrad)=="State"] <- "state_name"
+view(undergrad)
+```
+
+As mentioned earlier the data is broken down into different categories. There are male and female categories but also a 'total' category for both sex' combined, but if a map was to be created using the column of data with all 3 categories an incorrect representation will be displayed. It will show male and female data combined with total too, therefore doubling the actual number of degree holders.
+
+The subset function will be used to remove 'total' data in the sex column and data associated with it, creating a new dataset. This new dataset will then have Male data removed to make a female dataset.
+
+```{r}
+df1 <- subset(undergrad, Sex != "Total")
+view(df1)      #To check if Total has been removed
+ugf <- subset(df1, Sex!= "Male")      #This will now be our female data set 
+view(ugf)
+```
+
+The same is done for a male dataset, because df1 already has total removed, it can be used instead of having to create another new dataset removing total data.
+
+```{r}
+ugm <- subset(df1, Sex!= "Female")
+view(ugm)
+```
+
+Finally a total dataset is created for both sex' combined.
+```{r}
+df2 <- subset(undergrad, Sex!= "Male")
+ugt <- subset(df2, Sex!= "Female")   #This will be our Total data set
+```
+
+### Joining datasets
+
+In order to create a plot of a us map, both the states data and undergrad data have to be combined. To do this simply, both can be joined using a common column of data in both datasets. 
+
+Both sets have a column of states, but in the undergrad set, it is named 'states' but in the states set it is labelled 'state_name'. To join, both columns must have the same name. As done earlier the column name was changed for this step. 
+
+left_join is used to merge datasets, by combining everything from the left of one data set. A new dataset doing this is created for all three sex categories
+```{r}
+mapdataf <- left_join(states, ugf, by="state_name") 
+mapdatam <- left_join(states, ugm, by="state_name")
+mapdatat <- left_join(states, ugt, by="state_name") 
+```
+
+Use head () function to view a brief sample of each data to see if the state columns name has changed
+```{r}
+head(mapdataf)
+head(mapdatam)
+head(mapdatat)
+```
+
+# Creating Map Plots
+## Map creation basics
+### Making a basic map
+
+Now the data has been cleaned, it is ready to be used to create the maps, first an empty map can be created using ggplot and geom_polygon, using urbnmapr data as example. 
+
+The axis will be the latitude and longitude for the plot.
+Albers' is a projection allowing longitudes and latitudes to line up correctly and create the map.
+
+```{r}
+ggplot() + geom_polygon(data = urbnmapr::states, 
+               mapping =aes(x=long, y=lat, group=group),
+               fill ="grey", color="white") +
+coord_map(projection = "albers", lat0=39, lat1=45)
+```
+
+
+To construct the plot ggplot is used again, with the fill specified as the column regarding the degree desired to fill the map.
+
+Scale_fill_virditis_c is used to add a colour gradient to the map, and a scale bar on the side.
+The colour scales options are:
+
+* viridis
+* magma
+* plasma
+* inferno
+* cividis
+* mako
+* rocket
+* turbo
+
+Labs adds a title, now the mapdata of choice is added to geom_polygon to insert the data.
+
+color = #ffffff gives a white outline to the states, so states can be told apart.
+
+Finally theme_void() removes the background grid and axis.
+
+### Adding data to the plot 
+
+mapdatat will be used for the first rendition of the map using total data.
+
+```{r}
+      mapdatat %>% ggplot(aes(long, lat, group=group, fill = `Bachelor's Degree Holders`)) + geom_polygon(color= NA) + 
+  scale_fill_viridis_c(alpha = 1, option="mako",guide="colourbar") +
+  labs(title="Bachelor Degree Holders") + geom_polygon(data = mapdatat, mapping = aes(long, lat, group = group), fill=NA, color="#ffffff") +
+  coord_map(projection= "albers", lat0=39, lat1=45) + theme_void()
+```
+
+scales::label_number() is added to display simple number scales based on the maximum and minimum number of degree holders in the dataset, comma separated.
+
+```{r}
+mapdatat %>% ggplot(aes(long, lat, group=group, fill = `Bachelor's Degree Holders`)) + geom_polygon(color= NA) + 
+scale_fill_viridis_c(alpha = 1, option="mako",guide="colourbar", labels=scales::label_number()) + labs(title="Bachelors Degree Holders") + geom_polygon(data = mapdatat, mapping = aes(long, lat, group = group), fill=NA, color="#ffffff") +
+  coord_map(projection= "albers", lat0=39, lat1=45) + theme_void()
+```
+
+## Making the graphs interactive 
+
+Plotly is used here, using the text=paste0() function to add names of each state and number of degrees held, when hovered over using your cursor. To do this, the graph must also be given a name so in the below example it is p1.
+
+The cursor will display automatically an option to zoom in over any selected area of the map, this can then be reset by pressing the home button function in the top right corner panel. 
+
+The panel in the corner gives a wide variety of tools such zooming in and out, downloading a .png file and others.
+
+```{r}
+p1 <- mapdatat %>% 
+  ggplot(aes(
+    long, lat, group=group, fill = `Bachelor's Degree Holders`, text = paste0("State: ", state_name,"<br>Number of holders: ", `Bachelor's Degree Holders`))) +
+  geom_polygon(color= NA) + 
+scale_fill_viridis_c(alpha = 1, option="mako",guide="colourbar", labels=scales::label_number()) + labs(title="Bachelors Degree Holders") +
+  geom_polygon(data = mapdatat, mapping = aes(long, lat, group = group), fill=NA, color="#ffffff") +
+  coord_map(projection= "albers", lat0=39, lat1=45) + theme_void()
+ggplotly(p1)
+```
+
+Clicking the three lines icon in the top right corner panel, will display comparisons of data i.e. the four different age groups, with it also indirectly displaying the age groups with the highest numbers of degree holders in rank order using the same colour gradient scale as the map. 
+
+# Displaying the Final Data 
+## Total State Data
+### Simple Plots
+Firstly, lets compare data for total of both sex, for the sake of easy display the first set of graphs shown for each degree will be standard and not interactive to easily grid together where direct comparisons can be seen.
+
+```{r}
+ t1 <- mapdatat %>% ggplot(aes(long, lat, group=group, fill = Business)) + geom_polygon(color= NA) + 
+scale_fill_viridis_c(alpha = 1, option="mako",guide="colourbar", labels=scales::label_number()) + geom_polygon(data = mapdatat, mapping = aes(long, lat, group = group), fill=NA, color="#ffffff") +
+  coord_map(projection= "albers", lat0=39, lat1=45) + theme_void()
+
+ t2 <- mapdatat %>% ggplot(aes(long, lat, group=group, fill = `Science and Engineering`)) + geom_polygon(color= NA) + 
+scale_fill_viridis_c(alpha = 1, option="mako",guide="colourbar", labels=scales::label_number()) + geom_polygon(data = mapdatat, mapping = aes(long, lat, group = group), fill=NA, color="#ffffff") +
+  coord_map(projection= "albers", lat0=39, lat1=45) + theme_void()
+ 
+  t3 <- mapdatat %>% ggplot(aes(long, lat, group=group, fill = Education)) + geom_polygon(color= NA) + 
+scale_fill_viridis_c(alpha = 1, option="mako",guide="colourbar", labels=scales::label_number()) + geom_polygon(data = mapdatat, mapping = aes(long, lat, group = group), fill=NA, color="#ffffff") +
+  coord_map(projection= "albers", lat0=39, lat1=45) + theme_void()
+  
+   t4 <- mapdatat %>% ggplot(aes(long, lat, group=group, fill = `Arts, Humanities and Others`)) + geom_polygon(color= NA) + 
+scale_fill_viridis_c(alpha = 1, option="mako",guide="colourbar", labels=scales::label_number()) + geom_polygon(data = mapdatat, mapping = aes(long, lat, group = group), fill=NA, color="#ffffff") +
+  coord_map(projection= "albers", lat0=39, lat1=45) + theme_void()
+   
+ggarrange(t1, t2, t3, t4 + rremove("x.text"), 
+          ncol = 2, nrow = 2)
+```
+
+### Interactive plots
+
+To view the maps in more detail, interactive maps can be found here. These could be grid together like above but would make it harder to easily view, hence done separately below.
+
+```{r}
+t5 <- mapdatat %>% 
+  ggplot(aes(
+    long, lat, group=group, fill = Business, text = paste0("State: ", state_name,"<br>Number of holders: ", Business))) +
+  geom_polygon(color= NA) + 
+scale_fill_viridis_c(alpha = 1, option="mako",guide="colourbar", labels=scales::label_number()) + labs(title="Business Degree Holders") +
+  geom_polygon(data = mapdatat, mapping = aes(long, lat, group = group), fill=NA, color="#ffffff") +
+  coord_map(projection= "albers", lat0=39, lat1=45) + theme_void()
+ggplotly(t5)
+
+```
+
+
+```{r}
+t6 <- mapdatat %>% 
+  ggplot(aes(
+    long, lat, group=group, fill = `Science and Engineering`, text = paste0("State: ", state_name,"<br>Number of holders: ", `Science and Engineering`))) +
+  geom_polygon(color= NA) + 
+scale_fill_viridis_c(alpha = 1, option="mako",guide="colourbar", labels=scales::label_number()) + labs(title="Science and Engineering Degree Holders") +
+  geom_polygon(data = mapdatat, mapping = aes(long, lat, group = group), fill=NA, color="#ffffff") +
+  coord_map(projection= "albers", lat0=39, lat1=45) + theme_void()
+ggplotly(t6)
+
+```
+
+```{r}
+t7 <- mapdatat %>% 
+  ggplot(aes(
+    long, lat, group=group, fill = Education, text = paste0("State: ", state_name,"<br>Number of holders: ", Education))) +
+  geom_polygon(color= NA) + 
+scale_fill_viridis_c(alpha = 1, option="mako",guide="colourbar", labels=scales::label_number()) + labs(title="Education Degree Holders") +
+  geom_polygon(data = mapdatat, mapping = aes(long, lat, group = group), fill=NA, color="#ffffff") +
+  coord_map(projection= "albers", lat0=39, lat1=45) + theme_void()
+ggplotly(t7)
+
+```
+
+
+```{r}
+t8 <- mapdatat %>% 
+  ggplot(aes(
+    long, lat, group=group, fill = `Arts, Humanities and Others`, text = paste0("State: ", state_name,"<br>Number of holders: ", `Arts, Humanities and Others`))) +
+  geom_polygon(color= NA) + 
+scale_fill_viridis_c(alpha = 1, option="mako",guide="colourbar", labels=scales::label_number()) + labs(title="Arts & Humanities/others Degree Holders") +
+  geom_polygon(data = mapdatat, mapping = aes(long, lat, group = group), fill=NA, color="#ffffff") +
+  coord_map(projection= "albers", lat0=39, lat1=45) + theme_void()
+ggplotly(t8)
+
+```
+
+
+## Female State Data 
+### Simple Plots
+
+Data for female degree holders, the code will be hidden as it is exactly the same code as used for total data sections just adapted to the appropriate sex datasets.
+
+```{r echo = FALSE}
+ f1 <- mapdataf %>% ggplot(aes(long, lat, group=group, fill = Business)) + geom_polygon(color= NA) + 
+scale_fill_viridis_c(alpha = 1, option="plasma",guide="colourbar", labels=scales::label_number()) + geom_polygon(data = mapdataf, mapping = aes(long, lat, group = group), fill=NA, color="#ffffff") +
+  coord_map(projection= "albers", lat0=39, lat1=45) + theme_void()
+
+ f2 <- mapdataf %>% ggplot(aes(long, lat, group=group, fill = `Science and Engineering`)) + geom_polygon(color= NA) + 
+scale_fill_viridis_c(alpha = 1, option="plasma",guide="colourbar", labels=scales::label_number()) + geom_polygon(data = mapdataf, mapping = aes(long, lat, group = group), fill=NA, color="#ffffff") +
+  coord_map(projection= "albers", lat0=39, lat1=45) + theme_void()
+ 
+  f3 <- mapdataf %>% ggplot(aes(long, lat, group=group, fill = Education)) + geom_polygon(color= NA) + 
+scale_fill_viridis_c(alpha = 1, option="plasma",guide="colourbar", labels=scales::label_number()) + geom_polygon(data = mapdataf, mapping = aes(long, lat, group = group), fill=NA, color="#ffffff") +
+  coord_map(projection= "albers", lat0=39, lat1=45) + theme_void()
+  
+   f4 <- mapdataf %>% ggplot(aes(long, lat, group=group, fill = `Arts, Humanities and Others`)) + geom_polygon(color= NA) + 
+scale_fill_viridis_c(alpha = 1, option="plasma",guide="colourbar", labels=scales::label_number()) + geom_polygon(data = mapdataf, mapping = aes(long, lat, group = group), fill=NA, color="#ffffff") +
+  coord_map(projection= "albers", lat0=39, lat1=45) + theme_void()
+   
+ggarrange(f1, f2, f3, f4 + rremove("x.text"), 
+          ncol = 2, nrow = 2)
+```
+
+## Interactive Plots
+
+Interactive plots for female data
+```{r echo=FALSE}
+f5 <- mapdataf %>% 
+  ggplot(aes(
+    long, lat, group=group, fill = Business, text = paste0("State: ", state_name,"<br>Number of holders: ", Business))) +
+  geom_polygon(color= NA) + 
+scale_fill_viridis_c(alpha = 1, option="plasma",guide="colourbar", labels=scales::label_number()) + labs(title="Business Degree Holders") +
+  geom_polygon(data = mapdataf, mapping = aes(long, lat, group = group), fill=NA, color="#ffffff") +
+  coord_map(projection= "albers", lat0=39, lat1=45) + theme_void()
+ggplotly(f5)
+
+```
+
+
+```{r echo=FALSE}
+f6 <- mapdataf %>% 
+  ggplot(aes(
+    long, lat, group=group, fill = `Science and Engineering`, text = paste0("State: ", state_name,"<br>Number of holders: ", `Science and Engineering`))) +
+  geom_polygon(color= NA) + 
+scale_fill_viridis_c(alpha = 1, option="plasma",guide="colourbar", labels=scales::label_number()) + labs(title="Science and Engineering Degree Holders") +
+  geom_polygon(data = mapdataf, mapping = aes(long, lat, group = group), fill=NA, color="#ffffff") +
+  coord_map(projection= "albers", lat0=39, lat1=45) + theme_void()
+ggplotly(f6)
+
+```
+
+```{r echo=FALSE}
+f7 <- mapdataf %>% 
+  ggplot(aes(
+    long, lat, group=group, fill = Education, text = paste0("State: ", state_name,"<br>Number of holders: ", Education))) +
+  geom_polygon(color= NA) + 
+scale_fill_viridis_c(alpha = 1, option="plasma",guide="colourbar", labels=scales::label_number()) + labs(title="Education Degree Holders") +
+  geom_polygon(data = mapdataf, mapping = aes(long, lat, group = group), fill=NA, color="#ffffff") +
+  coord_map(projection= "albers", lat0=39, lat1=45) + theme_void()
+ggplotly(f7)
+
+```
+
+
+```{r echo=FALSE}
+f8 <- mapdataf %>% 
+  ggplot(aes(
+    long, lat, group=group, fill = `Arts, Humanities and Others`, text = paste0("State: ", state_name,"<br>Number of holders: ", `Arts, Humanities and Others`))) +
+  geom_polygon(color= NA) + 
+scale_fill_viridis_c(alpha = 1, option="plasma",guide="colourbar", labels=scales::label_number()) + labs(title="Arts & Humanities/others Degree Holders") +
+  geom_polygon(data = mapdataf, mapping = aes(long, lat, group = group), fill=NA, color="#ffffff") +
+  coord_map(projection= "albers", lat0=39, lat1=45) + theme_void()
+ggplotly(f8)
+
+```
+
+
+## Male state data
+### Simple plots
+
+Data for males.
+
+```{r echo=FALSE}
+ m1 <- mapdatam %>% ggplot(aes(long, lat, group=group, fill = Business)) + geom_polygon(color= NA) + 
+scale_fill_viridis_c(alpha = 1, option="cividis",guide="colourbar", labels=scales::label_number()) + geom_polygon(data = mapdatam, mapping = aes(long, lat, group = group), fill=NA, color="#ffffff") +
+  coord_map(projection= "albers", lat0=39, lat1=45) + theme_void()
+
+ m2 <- mapdatam %>% ggplot(aes(long, lat, group=group, fill = `Science and Engineering`)) + geom_polygon(color= NA) + 
+scale_fill_viridis_c(alpha = 1, option="cividis",guide="colourbar", labels=scales::label_number()) + geom_polygon(data = mapdatam, mapping = aes(long, lat, group = group), fill=NA, color="#ffffff") +
+  coord_map(projection= "albers", lat0=39, lat1=45) + theme_void()
+ 
+  m3 <- mapdatam %>% ggplot(aes(long, lat, group=group, fill = Education)) + geom_polygon(color= NA) + 
+scale_fill_viridis_c(alpha = 1, option="cividis",guide="colourbar", labels=scales::label_number()) + geom_polygon(data = mapdatam, mapping = aes(long, lat, group = group), fill=NA, color="#ffffff") +
+  coord_map(projection= "albers", lat0=39, lat1=45) + theme_void()
+  
+   m4 <- mapdatam %>% ggplot(aes(long, lat, group=group, fill = `Arts, Humanities and Others`)) + geom_polygon(color= NA) + 
+scale_fill_viridis_c(alpha = 1, option="cividis",guide="colourbar", labels=scales::label_number()) + geom_polygon(data = mapdatam, mapping = aes(long, lat, group = group), fill=NA, color="#ffffff") +
+  coord_map(projection= "albers", lat0=39, lat1=45) + theme_void()
+   
+ggarrange(m1, m2, m3, m4 + rremove("x.text"), 
+          ncol = 2, nrow = 2)
+```
+
+## Interactive Plots
+
+Interactive plots for male data.
+
+```{r echo=FALSE}
+m5 <- mapdatam %>% 
+  ggplot(aes(
+    long, lat, group=group, fill = Business, text = paste0("State: ", state_name,"<br>Number of holders: ", Business))) +
+  geom_polygon(color= NA) + 
+scale_fill_viridis_c(alpha = 1, option="cividis",guide="colourbar", labels=scales::label_number()) + labs(title="Business Degree Holders") +
+  geom_polygon(data = mapdatam, mapping = aes(long, lat, group = group), fill=NA, color="#ffffff") +
+  coord_map(projection= "albers", lat0=39, lat1=45) + theme_void()
+ggplotly(m5)
+
+```
+
+
+```{r echo=FALSE}
+m6 <- mapdatam %>% 
+  ggplot(aes(
+    long, lat, group=group, fill = `Science and Engineering`, text = paste0("State: ", state_name,"<br>Number of holders: ", `Science and Engineering`))) +
+  geom_polygon(color= NA) + 
+scale_fill_viridis_c(alpha = 1, option="cividis",guide="colourbar", labels=scales::label_number()) + labs(title="Science and Engineering Degree Holders") +
+  geom_polygon(data = mapdatam, mapping = aes(long, lat, group = group), fill=NA, color="#ffffff") +
+  coord_map(projection= "albers", lat0=39, lat1=45) + theme_void()
+ggplotly(m6)
+
+```
+
+```{r echo=FALSE}
+m7 <- mapdatam %>% 
+  ggplot(aes(
+    long, lat, group=group, fill = Education, text = paste0("State: ", state_name,"<br>Number of holders: ", Education))) +
+  geom_polygon(color= NA) + 
+scale_fill_viridis_c(alpha = 1, option="cividis",guide="colourbar", labels=scales::label_number()) + labs(title="Education Degree Holders") +
+  geom_polygon(data = mapdatam, mapping = aes(long, lat, group = group), fill=NA, color="#ffffff") +
+  coord_map(projection= "albers", lat0=39, lat1=45) + theme_void()
+ggplotly(m7)
+
+```
+
+
+```{r echo=FALSE}
+m8 <- mapdatam %>% 
+  ggplot(aes(
+    long, lat, group=group, fill = `Arts, Humanities and Others`, text = paste0("State: ", state_name,"<br>Number of holders: ", `Arts, Humanities and Others`))) +
+  geom_polygon(color= NA) + 
+scale_fill_viridis_c(alpha = 1, option="cividis",guide="colourbar", labels=scales::label_number()) + labs(title="Arts & Humanities/others Degree Holders") +
+  geom_polygon(data = mapdatam, mapping = aes(long, lat, group = group), fill=NA, color="#ffffff") +
+  coord_map(projection= "albers", lat0=39, lat1=45) + theme_void()
+ggplotly(m8)
+```
+
+
+# Summary
+
+- For all plots it was noticed that Texas, California, Florida  and New York had the highest number in all degrees held across both Sexes', they were most dominant. This can be assumed as they are popular states in the USA with higher population densities there and higher number of universities there.
+
+- A general pattern was noticed in that, northern states such as; Montana, Illinois, Wyoming, North and South Dakota and Minnesota, had lower numbers of degree holders all round for each degree type and sex.
+
+- Another discernible pattern noticed was the East coast and northeastern states possessing higher number of degree holders in most categories.
+
+- The most popular degree for both sexes was science and engineering, both were focused in the main states such as California, New York, Texas. But with considerably higher number of holders being males.
+
+- Education degrees were least popular for both males and females but saw more distribution of degree holders through the northeastern states and east coast, with some central states. Yet still saw the same dominant states holding the most graduates. Males however had considerably less number of education graduates compared to females.
+
+- Business degrees saw a similar distribution and number of both sexes.
+
+The dominant states mentioned may possess higher numbers due to more technical universities stationed there. But also possibly due to generally having much larger populations of people.
+
+The research questions were answered but further analysis is required to fully understand the data.
+
+
+# Future Directions 
+
+Some possible ideas to improve upon would be -
+
+- To compare individual age groups for each degree type and sex.
+
+- Perhaps Including bar charts alongside mapdata to show additional analysis of graduates.
+
+- To build a Shiny app allowing a more user friendly and interactive interface where drop down menus can be used to filter options of data, and easily compare against other data, for example making male vs female easier to compare.
+
+- Loops would clean up a lot of the code used, reducing repetition and cluttered pages.
+
+- Evenly size grid plots allowing an easier view of all maps together and fitting a better aesthetic. 
+
+- Hover text including age groups directly instead of having to refer back to dataframe to view which age group was highest number
